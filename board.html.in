@@ -1,66 +1,101 @@
 <!doctype html>
-<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#102b23"><title>Odjezdník · Prague departure board</title>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#102b23"><meta name="apple-mobile-web-app-capable" content="yes"><title>Odjezdník · Prague departure board</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#e9ece5;color:#142e25;font:16px "Segoe UI",Arial,sans-serif}main{max-width:820px;margin:clamp(12px,6vh,80px) auto;padding:0 14px}header,footer,.controls,.station,.row,.columns{display:flex;align-items:center}header{justify-content:space-between;margin-bottom:16px}.brand{font-weight:800;font-size:22px;letter-spacing:-1px}.mark{display:inline-block;vertical-align:middle;background:repeating-linear-gradient(90deg,#18382b 0 4px,transparent 4px 7px);width:25px;height:20px;transform:skew(-16deg);margin-right:9px}button,select{font:inherit;color:inherit;cursor:pointer}button{border:1px solid #9ca99e;background:transparent;border-radius:24px;padding:7px 14px}article{background:#102b23;color:#f4f4e9;border-radius:18px;overflow:hidden;box-shadow:0 8px 28px #14352418}.top{padding:clamp(16px,4vw,34px);background:#18392e}.eyebrow,.columns,small{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:650}.clock{float:right;font:600 15px monospace;color:#d8e7da}.station{gap:14px;margin:20px 0}.symbol{background:#cc403c;padding:4px 11px;border-radius:5px;font:bold 29px Arial;color:white}h1{font-size:clamp(25px,6vw,52px);line-height:1.05;letter-spacing:-.05em;margin:0}.controls{gap:8px;flex-wrap:wrap}.controls select{max-width:100%;border:1px solid #648371;background:#18392e;color:white;border-radius:16px;padding:5px 9px;font-size:13px}.body{padding:0 clamp(16px,4vw,34px)}.columns,.row{display:grid;grid-template-columns:56px 1fr auto;gap:12px}.columns{color:#b3c8bb;padding:17px 0 9px}.row{border-top:1px solid #395047;padding:13px 0;min-height:62px}.badge{background:#e6ece3;color:#16372b;font:bold 17px monospace;text-align:center;border-radius:4px;padding:4px 2px;min-width:35px;width:fit-content;max-width:100%;overflow-wrap:anywhere}.metroC{background:#bf3b3b;color:white}.metroB{background:#f4ca4b;color:#222}.metroA{background:#409762;color:white}.dest{font-weight:600;font-size:clamp(16px,3.3vw,24px);line-height:1.1}.sub{color:#b5c8bc;font-size:12px;margin-top:5px}.time{text-align:right}.eta{color:#def189;font:650 clamp(24px,5vw,36px)/1 monospace;letter-spacing:-.06em}.unit{font:500 12px Arial;letter-spacing:0}.columns span:last-child{text-align:right}footer{border-top:1px solid #395047;justify-content:space-between;gap:10px;padding:14px clamp(16px,4vw,34px);color:#ccdacd;font-size:12px}footer a{color:inherit}.empty{padding:20px 0;color:#e1e8db}body:fullscreen{overflow:auto}button:focus-visible,select:focus-visible{outline:3px solid #7ca522}@media(max-width:460px){main{margin:12px auto}.row,.columns{grid-template-columns:42px 1fr auto;gap:7px}.row{padding:10px 0}.station{margin:14px 0}.brand{font-size:19px}}
+/* Explicit dimensions and flex layout also work on pre-grid Safari. */
+main{width:100%;margin:14px auto}header,footer,.controls,.station,.row,.columns{display:-webkit-flex;display:flex}.row,.columns{gap:0}.row>div:first-child,.columns>span:first-child{width:54px;margin-right:12px;flex-shrink:0}.row>div:nth-child(2),.columns>span:nth-child(2){flex:1;min-width:0}.time,.columns>span:last-child{min-width:76px;margin-left:8px}.row{min-height:65px}.badge{width:54px}.top{padding:20px 24px}.body{padding:0 24px}footer{padding:14px 24px}h1{font-size:36px}.dest{font-size:22px;overflow-wrap:break-word}.eta{font:700 32px/1 monospace}.symbol{margin-right:12px}.station,.controls{gap:0}.controls select{min-height:44px;font-size:16px;margin-right:8px}button{min-height:44px}.clock{font-size:19px}.displaying .controls,.displaying .eyebrow{display:none}.displaying .station{margin:0}.displaying header{margin-bottom:6px}
+@media(min-width:600px) and (max-width:1100px){main{max-width:1024px;padding:0 16px;margin:10px auto}.top,.body,footer{padding-left:24px;padding-right:24px}.row{min-height:9vh;padding:8px 0}.dest{font-size:27px}.eta{font-size:40px}.sub{font-size:15px}.station{margin:8px 0 14px}.top{padding-top:14px;padding-bottom:14px}h1{font-size:38px}.columns{padding:10px 0 6px}.columns,.eyebrow,footer{font-size:13px}header{margin-bottom:8px}}
+@media(min-width:600px) and (orientation:landscape) and (max-height:780px){main{margin:4px auto}.top{padding-top:8px;padding-bottom:8px}.row{padding:5px 0;min-height:56px}.station{margin:2px 0 6px}.sub{margin-top:2px}.eta{font-size:30px}.dest{font-size:23px}h1{font-size:32px}footer{padding-top:8px;padding-bottom:8px}}
+@media(max-width:599px){.top,.body,footer{padding-left:14px;padding-right:14px}.dest{font-size:18px}.eta{font-size:28px}.row>div:first-child,.columns>span:first-child{width:40px;margin-right:6px}h1{font-size:29px}.controls select{font-size:15px}.time,.columns>span:last-child{min-width:60px}}
 </style>
 <main><header><div class="brand"><i class="mark"></i>Odjezdník</div><button id="display">Display mode</button></header><article><div class="top"><time class="clock" id="clock"></time><div class="eyebrow">Prague departures</div><div class="station"><span class="symbol" aria-label="Metro line C">C</span><h1 id="heading">Hlavní nádraží</h1></div><div class="controls"><select id="station" aria-label="Choose station"></select><select id="mode" aria-label="Transport type"></select></div></div><div class="body"><div class="columns"><span>Line</span><span>Direction</span><span>Leaves in</span></div><div id="rows"></div></div><footer><span id="status" role="status"></span><a href="https://pid.cz/en/opendata/">PID data ↗</a></footer></article></main>
 <script>
-const db=/*TIMETABLE*/null;
-const el=id=>document.getElementById(id);
-const types={0:"Tram",1:"Metro",2:"Train",3:"Bus",4:"Ferry",7:"Funicular",11:"Trolleybus"};
-const fmt=new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Prague",hour:"2-digit",minute:"2-digit"});
-const dateFmt=new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Prague",year:"numeric",month:"2-digit",day:"2-digit"});
-function preference(key,value){try{if(value===undefined)return localStorage.getItem(key);localStorage.setItem(key,value)}catch{}}
-for(const name of Object.keys(db.stations))el("station").add(new Option(name,name));
-el("station").value=Object.hasOwn(db.stations,preference("station"))?preference("station"):"Hlavní nádraží";
-let live=null,updated=0,sequence=0,attemptFailed=false,scheduled=[],cacheDay="",wake;
-function modes(){const select=el("mode");select.replaceChildren(new Option("All transport","all"));for(const id of new Set(db.stations[el("station").value].map(r=>r[3])))select.add(new Option(types[id]||"Other",id));const saved=preference("mode");if([...select.options].some(o=>o.value===saved))select.value=saved}
+var db=/*TIMETABLE*/null;
+var types={0:"Tram",1:"Metro",2:"Train",3:"Bus",4:"Ferry",7:"Funicular",11:"Trolleybus"};
+var live=null,updated=0,sequence=0,failed=false,scheduled=[],cacheDay="",wake=null;
+var onPages=/\.github\.io$/.test(location.hostname);
+function el(id){return document.getElementById(id)}
+function preference(key,value){try{if(value===undefined)return localStorage.getItem(key);localStorage.setItem(key,value)}catch(e){}}
+function pad(n){return n<10?"0"+n:String(n)}
+// Prague changes offset at 01:00 UTC on the last Sunday of March and October.
+function offsetAt(t){
+ var year=new Date(t).getUTCFullYear();
+ function change(month){var last=new Date(Date.UTC(year,month+1,0,1));return last.getTime()-last.getUTCDay()*86400000}
+ return t>=change(2)&&t<change(9)?7200000:3600000;
+}
+function local(t){return new Date(t+offsetAt(t))}
+function clock(t){var d=local(t);return pad(d.getUTCHours())+":"+pad(d.getUTCMinutes())}
+function dateKey(d){return String(d.getUTCFullYear())+pad(d.getUTCMonth()+1)+pad(d.getUTCDate())}
+function stationKey(name){
+ var key=String(name||"").toLowerCase().replace(/[á]/g,"a").replace(/í/g,"i").replace(/ž/g,"z").replace(/ř/g,"r").replace(/^praha[\s,.-]+/,"").replace(/[\s.,-]/g,"");
+ return /^(hln|hlnadrazi|hlavninadr)$/.test(key)?"hlavninadrazi":key;
+}
+function modes(){
+ var select=el("mode"),seen={},saved=preference("mode");
+ select.options.length=0;select.add(new Option("All transport","all"));
+ db.stations[el("station").value].forEach(function(r){if(!seen[r[3]]){seen[r[3]]=true;select.add(new Option(types[r[3]]||"Other",r[3]))}});
+ if(saved&&seen[saved])select.value=saved;
+}
 function schedule(now){
- const day=dateFmt.format(now);if(day===cacheDay)return;cacheDay=day;scheduled=[];
- for(const offset of [-1,0,1]){
- const noon=Date.parse(day+"T12:00:00Z")+offset*86400000;
- const key=dateFmt.format(noon).replaceAll("-","");
- const localHour=Number(fmt.format(noon).slice(0,2));
- const start=noon-localHour*3600000;
- for(const [seconds,service,line,type,dest] of db.stations[el("station").value]){
- if(db.services[service]?.includes(key))scheduled.push({at:start+seconds*1000,line,type,dest});
- }}
- scheduled.sort((a,b)=>a.at-b.at);
+ var d=local(now),key=dateKey(d);
+ if(cacheDay===key)return;cacheDay=key;scheduled=[];
+ [-1,0,1].forEach(function(offset){
+ var noon=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()+offset,12);
+ var serviceDay=dateKey(new Date(noon)),start=noon-offsetAt(noon)-43200000;
+ db.stations[el("station").value].forEach(function(r){
+ if(db.services[r[1]]&&db.services[r[1]].indexOf(serviceDay)>=0)scheduled.push({at:start+r[0]*1000,line:r[2],type:r[3],dest:r[4]});
+ });
+ });
+ scheduled.sort(function(a,b){return a.at-b.at});
 }
-function part(tag,cls,text){const n=document.createElement(tag);n.className=cls;n.textContent=text;return n}
+function part(cls,text){var n=document.createElement("div");n.className=cls;n.textContent=text;return n}
 function render(){
- const now=Date.now(),station=el("station").value,mode=el("mode").value;
- el("heading").textContent=station;el("clock").textContent=fmt.format(now);
- schedule(now);const fresh=live!==null&&!attemptFailed&&now-updated<(onPages?900000:90000);
- const rows=(fresh?live:scheduled).filter(r=>r.at>=now&&(mode==="all"||r.type==mode)).slice(0,5);
- const list=el("rows");list.replaceChildren();
- for(const r of rows){
- const row=part("div","row",""),direction=part("div","",""),time=part("div","time","");
- const min=Math.ceil((r.at-now)/60000);
- const eta=part("div","eta",min);eta.append(part("span","unit"," min"));
- direction.append(part("div","dest",r.dest),part("div","sub",(types[r.type]||"Transit")+(r.predicted?" · Predicted":" · Scheduled")));
- time.append(eta,part("div","sub",fmt.format(r.at)+(r.delay>0?" · +"+r.delay+"m":"")));
- row.append(part("div","badge "+(r.type===1?"metro"+r.line:""),r.line),direction,time);list.append(row);
- }
- if(!rows.length)list.append(part("div","empty",dateFmt.format(now).replaceAll("-","")>db.end&&!fresh?"Timetable expired. Refresh the PID feed.":"No upcoming departures in the available timetable."));
- el("status").textContent=fresh?"Live feed · "+fmt.format(updated):attemptFailed?"Live feed unavailable · Timetable":"PID timetable · Scheduled";
+ var now=Date.now(),station=el("station").value,mode=el("mode").value,target=stationKey(station);
+ el("heading").textContent=station;el("clock").textContent=clock(now);schedule(now);
+ var fresh=live!==null&&!failed&&now-updated<(onPages?900000:90000);
+ var rows=(fresh?live:scheduled).filter(function(r){return r.at>=now&&stationKey(r.dest)!==target&&(mode==="all"||r.type==mode)}).slice(0,5);
+ var list=el("rows");list.textContent="";
+ rows.forEach(function(r){
+ var row=part("row",""),direction=part("",""),time=part("time",""),eta=part("eta",Math.ceil((r.at-now)/60000));
+ var unit=document.createElement("span");unit.className="unit";unit.textContent=" min";eta.appendChild(unit);
+ direction.appendChild(part("dest",r.dest));direction.appendChild(part("sub",(types[r.type]||"Transit")+(r.predicted?" · Predicted":" · Scheduled")));
+ time.appendChild(eta);time.appendChild(part("sub",clock(r.at)+(r.delay>0?" · +"+r.delay+"m":"")));
+ row.appendChild(part("badge "+(r.type===1?"metro"+r.line:""),r.line));row.appendChild(direction);row.appendChild(time);list.appendChild(row);
+ });
+ if(!rows.length)list.appendChild(part("empty",dateKey(local(now))>db.end&&!fresh?"Timetable expired. Refresh the PID feed.":"No upcoming departures in the available timetable."));
+ el("status").textContent=fresh?"Live feed · "+clock(updated):failed?"Live feed unavailable · Timetable":"PID timetable · Scheduled";
 }
-const onPages=location.hostname.endsWith(".github.io");
-async function refresh(){const seq=++sequence;if(location.protocol==="file:"){render();return}
- try{if(onPages){
- const response=await fetch("https://raw.githubusercontent.com/yptacek-tech/odjezdnik/live-data/departures.json?t="+Math.floor(Date.now()/60000),{signal:AbortSignal.timeout(12000)});
- if(!response.ok)throw Error();
- const data=(await response.json())[el("station").value];
+function refresh(){
+ var seq=++sequence,station=el("station").value;
+ if(location.protocol==="file:")return;
+ var url=onPages?"https://raw.githubusercontent.com/yptacek-tech/odjezdnik/live-data/departures.json?t="+Math.floor(Date.now()/60000):"/api/departures?station="+encodeURIComponent(station);
+ var req=new XMLHttpRequest();req.open("GET",url,true);req.timeout=12000;
+ function failure(){if(seq===sequence){failed=true;render()}}
+ req.onerror=req.ontimeout=failure;
+ req.onload=function(){
  if(seq!==sequence)return;
- if(!data||Date.now()-data.observed>900000)throw Error();
- live=data.rows;updated=data.observed;attemptFailed=false;return;
- }const resp=await fetch("/api/departures?station="+encodeURIComponent(el("station").value)+"&mode="+el("mode").value,{signal:AbortSignal.timeout(12000)});if(seq!==sequence)return;
- if(!resp.headers.get("content-type")?.includes("application/json"))return;
- const data=await resp.json();if(seq!==sequence)return;if(!resp.ok)throw Error();live=data.rows;updated=Date.now();attemptFailed=false}
- catch{if(seq===sequence){live=null;attemptFailed=true}}finally{render()}}
-function change(){cacheDay="";live=null;attemptFailed=false;preference("station",el("station").value);render();refresh()}
-el("station").onchange=()=>{modes();change()};el("mode").onchange=()=>{preference("mode",el("mode").value);change()};
-el("display").onclick=async()=>{try{if(document.fullscreenElement){await document.exitFullscreen();return}await document.documentElement.requestFullscreen();wake=await navigator.wakeLock?.request("screen")}catch{el("display").textContent=document.fullscreenElement?"Exit display":"Fullscreen unavailable"}};
-document.onfullscreenchange=()=>{el("display").textContent=document.fullscreenElement?"Exit display":"Display mode";if(!document.fullscreenElement)wake?.release()};
-modes();render();refresh();setInterval(render,5000);setInterval(refresh,30000);document.onvisibilitychange=()=>{if(!document.hidden){render();refresh()}};
+ try{
+ if(req.status!==200)throw Error();
+ var data=JSON.parse(req.responseText);if(onPages)data=data[station];
+ updated=onPages?data.observed:Date.now();if(Date.now()-updated>900000)throw Error();
+ live=data.rows;failed=false;render();
+ }catch(e){failure()}
+ };
+ req.send();
+}
+function change(){cacheDay="";live=null;failed=false;preference("station",el("station").value);render();refresh()}
+Object.keys(db.stations).forEach(function(s){el("station").add(new Option(s,s))});
+var saved=preference("station");
+el("station").value=Object.prototype.hasOwnProperty.call(db.stations,saved)?saved:"Hlavní nádraží";
+el("station").onchange=function(){modes();change()};
+el("mode").onchange=function(){preference("mode",el("mode").value);change()};
+function setDisplay(active){document.body.className=active?"displaying":"";el("display").textContent=active?"Exit display":"Display mode";el("display").setAttribute("aria-pressed",String(active))}
+el("display").onclick=function(){
+ var active=document.body.className!=="displaying";setDisplay(active);
+ if(active){window.scrollTo(0,0);if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(function(){});
+ if(navigator.wakeLock)navigator.wakeLock.request("screen").then(function(lock){wake=lock},function(){});
+ }else{if(document.fullscreenElement)document.exitFullscreen();if(wake){wake.release();wake=null}}
+};
+document.onfullscreenchange=function(){if(!document.fullscreenElement){setDisplay(false);if(wake){wake.release();wake=null}}};
+modes();render();refresh();setInterval(render,5000);setInterval(refresh,30000);document.onvisibilitychange=function(){if(!document.hidden){render();refresh()}};
 </script></html>

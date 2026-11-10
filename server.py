@@ -14,7 +14,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import Request, urlopen
 
-from build import STATIONS
+from build import STATIONS, station_key
 
 ROOT = Path(__file__).resolve().parent
 PASSWORD = os.getenv("BOARD_PASSWORD")
@@ -35,7 +35,9 @@ def departures(station):
     rows = []
     for item in data["departures"]:
         trip = item["trip"]
-        if trip.get("is_canceled"):
+        last_stop = (item.get("last_stop") or {}).get("name")
+        destination = trip.get("headsign") or last_stop or "—"
+        if trip.get("is_canceled") or station_key(station) in (station_key(destination), station_key(last_stop)):
             continue
         times = item["departure_timestamp"]
         delay = item.get("delay") or {}
