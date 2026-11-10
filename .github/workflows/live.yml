@@ -1,0 +1,35 @@
+name: Refresh live departures
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+permissions:
+  contents: write
+concurrency:
+  group: update-departures
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+      - run: python3 snapshot.py
+        env:
+          GOLEMIO_API_KEY: ${{ secrets.GOLEMIO_API_KEY }}
+      - name: Publish departure data
+        run: |
+          mv departures.json "$RUNNER_TEMP/departures.json"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin refs/heads/live-data; then
+            git switch -C live-data FETCH_HEAD
+          else
+            git switch --orphan live-data
+          fi
+          cp "$RUNNER_TEMP/departures.json" .
+          git add departures.json
+          git commit -m "Refresh Prague departures"
+          git push origin HEAD:refs/heads/live-data

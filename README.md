@@ -15,4 +15,4 @@ Deploy this directory to a Docker-capable web host and enable HTTPS. Set BOARD_P
 Run `python build.py` to download the current PID timetable and rebuild index.html. The bundled snapshot covers 10–23 November 2026. Local server users can set REFRESH_TIMETABLE=1 for daily refreshes. Source data: https://pid.cz/en/opendata/ . Live API: https://api.golemio.cz/pid/docs/openapi/ .
 
 ## GitHub Pages
-Enable GitHub Actions under Settings → Pages. The included workflow refreshes the timetable daily. Use Connect live data on the published page to connect directly to Golemio with your own key for the current tab.
+Enable GitHub Actions under Settings → Pages. The included workflow refreshes the timetable daily. The live workflow requests Golemio predictions for each station with the GOLEMIO_API_KEY repository secret and publishes only departure data to the live-data branch. Runs are scheduled every five minutes and may start later. The page shows the observation time and switches to the timetable if the data is older than 15 minutes.
