@@ -49,11 +49,27 @@ function schedule(now){
  scheduled.sort(function(a,b){return a.at-b.at});
 }
 function part(cls,text){var n=document.createElement("div");n.className=cls;n.textContent=text;return n}
+// A reinforced service can have several PID vehicle records for one advertised departure.
+function upcomingRows(source,now,target,mode){
+ var byService=Object.create(null),rows=[];
+ source.forEach(function(r){
+  if(r.at<now||stationKey(r.dest)===target||(mode!=="all"&&r.type!=mode))return;
+  var key=JSON.stringify([r.scheduledAt||r.at,r.type,r.line,stationKey(r.dest)]);
+  var previous=byService[key];
+  if(previous===undefined){
+   byService[key]=rows.length;rows.push(r);
+  }else{
+   var kept=rows[previous];
+   if((r.predicted&&!kept.predicted)||(!!r.predicted===!!kept.predicted&&r.at<kept.at))rows[previous]=r;
+  }
+ });
+ return rows.sort(function(a,b){return a.at-b.at}).slice(0,5);
+}
 function render(){
  var now=Date.now(),station=el("station").value,mode=el("mode").value,target=stationKey(station);
  el("heading").textContent=station;el("clock").textContent=clock(now);schedule(now);
  var fresh=live!==null&&!failed&&now-updated<(onPages?900000:90000);
- var rows=(fresh?live:scheduled).filter(function(r){return r.at>=now&&stationKey(r.dest)!==target&&(mode==="all"||r.type==mode)}).slice(0,5);
+ var rows=upcomingRows(fresh?live:scheduled,now,target,mode);
  var list=el("rows");list.textContent="";
  rows.forEach(function(r){
  var row=part("row",""),direction=part("",""),time=part("time",""),eta=part("eta",Math.ceil((r.at-now)/60000));

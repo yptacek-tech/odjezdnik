@@ -44,7 +44,7 @@ def departures(station):
         predicted = bool(times.get("predicted") and delay.get("is_available"))
         at = times.get("predicted") if predicted else times.get("scheduled")
         if at:
-            rows.append(dict(at=timestamp(at), predicted=predicted, delay=delay.get("minutes") if predicted else None,
+            rows.append(dict(at=timestamp(at), scheduledAt=timestamp(times.get("scheduled") or at), predicted=predicted, delay=delay.get("minutes") if predicted else None,
                              type=item["route"]["type"], line=item["route"]["short_name"],
                              dest=destination))
     return sorted(rows, key=lambda r: r["at"])
