@@ -16,20 +16,7 @@ jobs:
       - run: python3 -m unittest discover -s tests
       - run: node --test tests/board.test.cjs
       - run: python3 build.py
-      - name: Verify Prague coverage
-        run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          catalog = json.loads(Path('data/catalog.json').read_text())
-          assert len(catalog) > 500, len(catalog)
-          for name in ['Hlavní nádraží', 'Anděl', 'Dejvická', 'Nádraží Veleslavín', 'Palmovka', 'Zličín']:
-              assert name in catalog, name
-              assert (Path('data') / catalog[name]['file']).exists(), name
-          modes = {mode for stop in catalog.values() for mode, line in stop['lines']}
-          assert {0, 1, 2, 3, 11} <= modes, modes
-          print(f'Checked {len(catalog)} Prague stops, transport types {sorted(modes)}')
-          PY
+      - run: python3 verify_site.py .
       - uses: actions/upload-artifact@v4
         with:
           name: prague-board

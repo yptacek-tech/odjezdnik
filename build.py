@@ -69,8 +69,8 @@ def build(archive, root=ROOT):
         # entries even for stops with arrivals only during this feed period.
         departures[:] = sorted(set(tuple(row) for row in departures))
         used = {row[1] for row in departures}
-        payload = dict(rows=departures, services={k: sorted(services.get(k, set())) for k in used})
-        packed = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+        payload = dict(rows=departures, services={k: sorted(services.get(k, set())) for k in sorted(used)}, end=info["feed_end_date"])
+        packed = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         filename = hashlib.sha256(packed.encode()).hexdigest() + ".json"
         (data_dir / filename).write_text(packed, encoding="utf8")
         catalog[name] = dict(file=filename, lines=sorted({(r[3], r[2]) for r in departures}))

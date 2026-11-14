@@ -134,3 +134,73 @@ test('renders seconds and urgency colors without transport notes, retaining minu
   assert.equal(rows[0].children[2].children[1].textContent, '13:02');
   assert.match(rows[0].children[2].children[1].attributes['aria-label'], /^Scheduled departure /);
 });
+
+test('recovers a missing stop file after deployment using a fresh catalog', () => {
+  const { c, nodes, requests } = board();
+  nodes.station.value = 'Anděl'; c.change();
+  const old = requests.find(r => r.url === 'data/andel.json');
+  old.status = 404; old.onload();
+  const catalogRequest = requests.find(r => r.url.startsWith('data/catalog.json?t='));
+  assert.ok(catalogRequest);
+  catalogRequest.status = 200;
+  catalogRequest.responseText = JSON.stringify({ 'Anděl': { file: 'new-andel.json', lines: [[0, '9'], [0, '22']] } });
+  catalogRequest.onload();
+  const recovered = requests.find(r => r.url.startsWith('data/new-andel.json?t='));
+  assert.ok(recovered);
+  recovered.status = 200;
+  recovered.responseText = JSON.stringify({ rows: [[36000, 'daily', '22', 0, 'Hostivař']], services: { daily: ['20261114'] }, end: '20990102' });
+  recovered.onload();
+  assert.equal(c.timetableError, false);
+  assert.equal(c.loading, false);
+  assert.equal(c.db.stations['Anděl'][0][2], '22');
+  assert.equal(c.db.end, '20990102');
+  assert.ok(c.stationLines.some(r => r[1] === '22'));
+});
+
+test('ignores stale catalog recovery when the selected stop changes', () => {
+  const { c, nodes, requests } = board();
+  nodes.station.value = 'Anděl'; c.change();
+  const old = requests.find(r => r.url === 'data/andel.json');
+  old.status = 404; old.onload();
+  const catalogRequest = requests.find(r => r.url.startsWith('data/catalog.json?t='));
+  nodes.station.value = 'Štěpánská'; c.change();
+  catalogRequest.status = 200;
+  catalogRequest.responseText = JSON.stringify({ 'Anděl': { file: 'obsolete.json', lines: [] } });
+  catalogRequest.onload();
+  assert.ok(!requests.some(r => r.url.includes('obsolete.json')));
+  assert.equal(c.loading, true);
+});
+
+test('stops automatic retries and offers a real Retry button on persistent failure', () => {
+  const { c, nodes, requests } = board();
+  nodes.station.value = 'Anděl'; c.change();
+  requests.find(r => r.url === 'data/andel.json').onerror();
+  const catalogRequest = requests.find(r => r.url.startsWith('data/catalog.json?t='));
+  catalogRequest.status = 200;
+  catalogRequest.responseText = JSON.stringify({ 'Anděl': { file: 'andel.json', lines: [] } });
+  catalogRequest.onload();
+  requests.find(r => r.url.startsWith('data/andel.json?t=')).ontimeout();
+  assert.equal(c.loading, false); assert.equal(c.timetableError, true);
+  const retry = nodes.rows.children.find(n => n.textContent === 'Retry');
+  assert.ok(retry);
+  const before = requests.length; retry.onclick();
+  assert.equal(c.loading, true); assert.equal(requests.length, before + 1);
+});
+
+test('treats an empty timetable as loaded rather than a network failure', () => {
+  const { c, nodes, requests } = board();
+  nodes.station.value = 'Anděl'; c.change();
+  const req = requests.find(r => r.url === 'data/andel.json');
+  req.status = 200; req.responseText = JSON.stringify({ rows: [], services: {} }); req.onload();
+  assert.equal(c.loading, false); assert.equal(c.timetableError, false);
+  assert.ok(Array.isArray(c.db.stations['Anděl']));
+});
+
+test('catalog failure ends loading and malformed stop JSON triggers recovery', () => {
+  const { c, nodes, requests } = board();
+  nodes.station.value = 'Anděl'; c.change();
+  const req = requests.find(r => r.url === 'data/andel.json');
+  req.status = 200; req.responseText = '<html>Cached error</html>'; req.onload();
+  requests.find(r => r.url.startsWith('data/catalog.json?t=')).onerror();
+  assert.equal(c.loading, false); assert.equal(c.timetableError, true);
+});

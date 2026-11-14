@@ -146,17 +146,55 @@ function lineFilters(){
 }
 function saveLines(){preference("hidden-lines:"+el("station").value,JSON.stringify(excluded))}
 function setAllLines(show){stationLines.forEach(function(r){if(el("mode").value!=="all"&&r[0]!=el("mode").value)return;var key=routeKey(r[0],r[1]);if(show)delete excluded[key];else excluded[key]=true});saveLines();lineFilters();render()}
+function updateFilters(){
+ var mode=el("mode").value;modes();
+ if(mode==="all"||stationLines.some(function(r){return r[0]==mode}))el("mode").value=mode;
+ lineFilters();
+}
 function loadTimetable(){
  var station=el("station").value,seq=++loadSequence;loading=false;timetableError=false;
  if(db.stations[station])return;
  if(location.protocol==="file:"){timetableError=true;return}
- loading=true;var req=new XMLHttpRequest();req.open("GET","data/"+catalog[station].file,true);req.timeout=20000;
- function failure(){if(seq===loadSequence){loading=false;timetableError=true;render()}}
- req.onerror=req.ontimeout=failure;
- req.onload=function(){
-  if(seq!==loadSequence)return;
-  try{if(req.status!==200)throw Error();var data=JSON.parse(req.responseText);if(!Array.isArray(data.rows)||!data.services)throw Error();db.stations[station]=data.rows;Object.keys(data.services).forEach(function(k){db.services[k]=data.services[k]});loading=false;cacheDay="";render()}catch(e){failure()}
- };req.send();
+ loading=true;
+ function current(){return seq===loadSequence&&station===el("station").value}
+ function failure(){if(current()){loading=false;timetableError=true;render()}}
+ function recover(){
+  if(!current())return;
+  var req=new XMLHttpRequest();req.open("GET","data/catalog.json?t="+Date.now(),true);req.timeout=20000;
+  req.onerror=req.ontimeout=failure;
+  req.onload=function(){
+   if(!current())return;
+   try{
+    if(req.status!==200)throw Error();
+    var latest=JSON.parse(req.responseText);
+    if(!latest[station]||!latest[station].file)throw Error();
+    catalog=latest;db.catalog=latest;
+    request(true);
+   }catch(e){failure()}
+  };req.send();
+ }
+ function request(retried){
+  if(!current())return;
+  var entry=catalog[station];
+  if(!entry||!entry.file){if(retried)failure();else recover();return}
+  var req=new XMLHttpRequest();
+  req.open("GET","data/"+entry.file+(retried?"?t="+Date.now():""),true);req.timeout=20000;
+  function failed(){if(current()){if(retried)failure();else recover()}}
+  req.onerror=req.ontimeout=failed;
+  req.onload=function(){
+   if(!current())return;
+   try{
+    if(req.status!==200)throw Error();
+    var data=JSON.parse(req.responseText);
+    if(!Array.isArray(data.rows)||!data.services||typeof data.services!=="object"||Array.isArray(data.services))throw Error();
+    db.stations[station]=data.rows;
+    Object.keys(data.services).forEach(function(k){db.services[k]=data.services[k]});
+    if(data.end)db.end=data.end;
+    loading=false;timetableError=false;cacheDay="";updateFilters();render();
+   }catch(e){failed()}
+  };req.send();
+ }
+ request(false);
 }
 function schedule(now){
  var d=local(now),key=dateKey(d);
@@ -203,7 +241,11 @@ function render(){
  var departure=part("sub",clock(r.scheduledAt||r.at));departure.setAttribute("aria-label","Scheduled departure "+clock(r.scheduledAt||r.at));time.appendChild(departure);
  row.appendChild(part("badge "+(r.type===1?"metro"+r.line:""),r.line));row.appendChild(direction);row.appendChild(time);list.appendChild(row);
  });
- if(!rows.length)list.appendChild(part("empty",loading&&!fresh?"Loading this stop’s timetable…":timetableError&&!fresh?(location.protocol==="file:"?"Open the hosted board or run python server.py to load this stop.":"Could not load this stop. Select it again to retry."):dateKey(local(now))>db.end&&!fresh?"Timetable expired. Refresh the PID feed.":"No upcoming departures for the selected lines. Try Show all or another transport type."));
+ if(!rows.length)list.appendChild(part("empty",loading&&!fresh?"Loading this stop’s timetable…":timetableError&&!fresh?(location.protocol==="file:"?"Open the hosted board or run python server.py to load this stop.":"Could not load this stop."):dateKey(local(now))>db.end&&!fresh?"Timetable expired. Refresh the PID feed.":"No upcoming departures for the selected lines. Try Show all or another transport type."));
+ if(timetableError&&!fresh&&!loading&&location.protocol!=="file:"){
+  var retry=document.createElement("button");retry.type="button";retry.textContent="Retry";
+  retry.onclick=function(){loadTimetable();render()};list.appendChild(retry);
+ }
 }
 function refresh(){
  var seq=++sequence,station=el("station").value;
@@ -218,7 +260,7 @@ function refresh(){
  if(req.status!==200)throw Error();
  var data=JSON.parse(req.responseText);if(onPages){data=data[station];if(!data){live=null;failed=false;render();return}}
  updated=onPages?data.observed:Date.now();if(Date.now()-updated>900000)throw Error();
- live=data.rows;failed=false;var selectedMode=el("mode").value;modes();if(selectedMode==="all"||stationLines.some(function(r){return r[0]==selectedMode}))el("mode").value=selectedMode;lineFilters();render();
+ live=data.rows;failed=false;updateFilters();render();
  }catch(e){failure()}
  };
  req.send();

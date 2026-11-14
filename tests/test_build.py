@@ -50,6 +50,7 @@ class PragueFeedTest(unittest.TestCase):
             main = json.loads((root / "data" / catalog["Hlavní nádraží"]["file"]).read_text(encoding="utf8"))
             self.assertEqual(len(main["rows"]), 7)  # merged aliases deduplicate rows
             self.assertEqual(main["services"]["daily"], ["20261114"])
+            self.assertEqual(main["end"], "20261115")
             self.assertTrue(all(row[0] == 90600 for row in main["rows"]))
             self.assertEqual({mode for mode, line in catalog["Hlavní nádraží"]["lines"]}, {0, 1, 2, 3, 4, 7, 11})
             andel = json.loads((root / "data" / catalog["Anděl"]["file"]).read_text(encoding="utf8"))
@@ -57,6 +58,12 @@ class PragueFeedTest(unittest.TestCase):
             html = (root / "index.html").read_text(encoding="utf8")
             self.assertNotIn("/*TIMETABLE*/null", html)
             self.assertIn('"catalog":', html)
+            # A UI-only rebuild must retain every timetable file URL.
+            original_files = {name: item["file"] for name, item in catalog.items()}
+            (root / "board.html.in").write_text("/* redesigned */ var db=/*TIMETABLE*/null;", encoding="utf8")
+            build.build(archive, root)
+            rebuilt = json.loads((root / "data/catalog.json").read_text(encoding="utf8"))
+            self.assertEqual(original_files, {name: item["file"] for name, item in rebuilt.items()})
 
 
 if __name__ == "__main__":
