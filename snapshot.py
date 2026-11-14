@@ -4,7 +4,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from server import STATIONS, departures
+from server import LIVE_STATIONS, departures
 
 
 def snapshot(station):
@@ -12,5 +12,6 @@ def snapshot(station):
 
 
 with ThreadPoolExecutor(max_workers=3) as pool:
-    stations = dict(pool.map(snapshot, STATIONS))
+    stations = dict(pool.map(snapshot, LIVE_STATIONS))
 Path("departures.json").write_text(json.dumps(stations, ensure_ascii=False, separators=(",", ":")), encoding="utf8")
+
