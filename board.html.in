@@ -12,7 +12,9 @@ button{min-height:44px;border:1px solid #454545;border-radius:6px;background:tra
 header button{font-size:13px;color:#bcbcbc}
 article{background:#111;border:1px solid #303030;border-radius:12px;overflow:hidden}
 .top{padding:24px}
-.station{justify-content:space-between;gap:16px;margin-bottom:24px}
+.station{justify-content:space-between;gap:16px;margin-bottom:10px}
+.access-times{display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:22px;color:#929292;font-size:13px}
+.access-times strong{color:#ddd;font-weight:500}
 h1{min-width:0;font-size:36px;line-height:1.1;font-weight:600;letter-spacing:-1.2px;margin:0;overflow-wrap:break-word}
 .clock{flex-shrink:0;color:#a3a3a3;font:500 19px monospace}
 .controls{align-items:flex-start;flex-wrap:wrap;gap:8px}
@@ -37,7 +39,10 @@ h1{min-width:0;font-size:36px;line-height:1.1;font-weight:600;letter-spacing:-1.
 .badge{width:54px;padding:5px 2px;border:1px solid #555;border-radius:4px;background:#242424;color:#f5f5f5;font:600 18px monospace;text-align:center;overflow-wrap:anywhere}
 .dest{font-size:24px;font-weight:500;line-height:1.15;overflow-wrap:break-word}
 .sub{font-size:12px;color:#929292;margin-top:5px}
-.eta{color:#fff;font:600 36px/1 monospace;letter-spacing:-1.5px}
+.eta{color:#fff;font:600 36px/1 monospace;letter-spacing:-1.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.eta.too-late{color:#f87171}
+.eta.run-only{color:#fb923c}
+.time{flex-shrink:0}
 .unit{font:400 12px Arial;letter-spacing:0;color:#aaa}
 footer{padding:10px 24px 16px;text-align:right}
 footer a{color:#888;font-size:11px;text-decoration:none}
@@ -50,7 +55,7 @@ body:fullscreen{overflow:auto}
 @media(max-width:599px){
  main{margin:14px auto;padding:0 12px}
  .top{padding:20px 16px}.body{padding:0 16px}footer{padding:10px 16px 16px}
- h1{font-size:29px}.clock{font-size:16px}.station{gap:12px;margin-bottom:20px}
+ h1{font-size:29px}.clock{font-size:16px}.station{gap:12px;margin-bottom:10px}
  .controls select{font-size:14px}
  .row>div:first-child,.columns>span:first-child{width:40px;margin-right:10px}
  .badge{width:40px;font-size:16px}.dest{font-size:19px}.eta{font-size:29px}
@@ -61,7 +66,7 @@ body:fullscreen{overflow:auto}
 }
 @media(min-width:600px) and (orientation:landscape) and (max-height:780px){
  main{margin:8px auto}header{margin-bottom:10px}.top{padding-top:16px;padding-bottom:16px}
- .station{margin-bottom:16px}h1{font-size:32px}.row{min-height:60px;padding:8px 0}.dest{font-size:23px}.eta{font-size:30px}.sub{margin-top:3px}
+ .station{margin-bottom:8px}.access-times{margin-bottom:16px}h1{font-size:32px}.row{min-height:60px;padding:8px 0}.dest{font-size:23px}.eta{font-size:30px}.sub{margin-top:3px}
 }
 </style>
 <main>
@@ -69,6 +74,7 @@ body:fullscreen{overflow:auto}
 <article>
 <div class="top">
 <div class="station"><h1 id="heading">Hlavní nádraží</h1><time class="clock" id="clock"></time></div>
+<div class="access-times" aria-label="Average time to station"><span>Walking <strong>9 min</strong></span><span>Running <strong>5 min</strong></span></div>
 <div class="controls">
 <select id="station" aria-label="Choose station"></select>
 <select id="mode" aria-label="Transport type"></select>
@@ -84,6 +90,7 @@ body:fullscreen{overflow:auto}
 <script>
 var db=/*TIMETABLE*/null;
 var types={0:"Tram",1:"Metro",2:"Train",3:"Bus",4:"Ferry",7:"Funicular",11:"Trolleybus"};
+var WALK_MINUTES=9,RUN_MINUTES=5;
 var live=null,updated=0,sequence=0,failed=false,scheduled=[],cacheDay="",wake=null;
 var loading=false,timetableError=false,loadSequence=0,excluded={},catalog=db.catalog||{},stationLines=[];
 var onPages=/\.github\.io$/.test(location.hostname);
@@ -97,7 +104,10 @@ function offsetAt(t){
  return t>=change(2)&&t<change(9)?7200000:3600000;
 }
 function local(t){return new Date(t+offsetAt(t))}
-function clock(t){var d=local(t);return pad(d.getUTCHours())+":"+pad(d.getUTCMinutes())}
+function clock(t,seconds){var d=local(t);return pad(d.getUTCHours())+":"+pad(d.getUTCMinutes())+(seconds?":"+pad(d.getUTCSeconds()):"")}
+function remainingSeconds(at,now){return Math.max(0,Math.floor((at-now)/1000))}
+function countdown(seconds){return Math.floor(seconds/60)+":"+pad(seconds%60)}
+function countdownTone(seconds){return seconds<RUN_MINUTES*60?"too-late":seconds<WALK_MINUTES*60?"run-only":""}
 function dateKey(d){return String(d.getUTCFullYear())+pad(d.getUTCMonth()+1)+pad(d.getUTCDate())}
 function stationKey(name){
  var key=String(name||"").toLowerCase().replace(/[á]/g,"a").replace(/í/g,"i").replace(/ž/g,"z").replace(/ř/g,"r").replace(/^praha[\s,.-]+/,"").replace(/[\s.,-]/g,"");
@@ -179,15 +189,18 @@ function upcomingRows(source,now,target,mode,hidden){
 }
 function render(){
  var now=Date.now(),station=el("station").value,mode=el("mode").value,target=stationKey(station);
- el("heading").textContent=station;el("clock").textContent=clock(now);schedule(now);
+ el("heading").textContent=station;el("clock").textContent=clock(now,true);schedule(now);
  var fresh=live!==null&&!failed&&now-updated<(onPages?900000:90000);
  var rows=upcomingRows(fresh?live:scheduled,now,target,mode,excluded);
  var list=el("rows");list.textContent="";
  rows.forEach(function(r){
- var row=part("row",""),direction=part("",""),time=part("time",""),eta=part("eta",Math.ceil((r.at-now)/60000));
+ var seconds=remainingSeconds(r.at,now);
+ var row=part("row",""),direction=part("",""),time=part("time",""),eta=part("eta "+countdownTone(seconds),countdown(seconds));
+ eta.setAttribute("aria-label",Math.floor(seconds/60)+" minutes "+seconds%60+" seconds remaining");
  var unit=document.createElement("span");unit.className="unit";unit.textContent=" min";eta.appendChild(unit);
- direction.appendChild(part("dest",r.dest));direction.appendChild(part("sub",(types[r.type]||"Transit")+(r.predicted?" · Predicted":" · Scheduled")));
- time.appendChild(eta);time.appendChild(part("sub",clock(r.at)+(r.delay>0?" · +"+r.delay+"m":"")));
+ direction.appendChild(part("dest",r.dest));
+ time.appendChild(eta);
+ var departure=part("sub",clock(r.scheduledAt||r.at));departure.setAttribute("aria-label","Scheduled departure "+clock(r.scheduledAt||r.at));time.appendChild(departure);
  row.appendChild(part("badge "+(r.type===1?"metro"+r.line:""),r.line));row.appendChild(direction);row.appendChild(time);list.appendChild(row);
  });
  if(!rows.length)list.appendChild(part("empty",loading&&!fresh?"Loading this stop’s timetable…":timetableError&&!fresh?(location.protocol==="file:"?"Open the hosted board or run python server.py to load this stop.":"Could not load this stop. Select it again to retry."):dateKey(local(now))>db.end&&!fresh?"Timetable expired. Refresh the PID feed.":"No upcoming departures for the selected lines. Try Show all or another transport type."));
@@ -225,5 +238,5 @@ el("display").onclick=function(){
  }else{if(document.fullscreenElement)document.exitFullscreen();if(wake){wake.release();wake=null}}
 };
 document.onfullscreenchange=function(){if(!document.fullscreenElement){setDisplay(false);if(wake){wake.release();wake=null}}};
-change();setInterval(render,5000);setInterval(refresh,30000);document.onvisibilitychange=function(){if(!document.hidden){render();refresh()}};
+change();setInterval(render,1000);setInterval(refresh,30000);document.onvisibilitychange=function(){if(!document.hidden){render();refresh()}};
 </script></html>

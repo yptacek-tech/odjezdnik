@@ -4,6 +4,8 @@ Select any active Prague stop from PID's current timetable: metro, tram, bus, tr
 
 Choose a stop, then open **All lines** to select its route numbers or letters. **Hide all** lets you start with just the routes you use; **Show all** restores every route for the selected transport type. Filters apply before the board takes the next five departures, so hidden routes leave room for later departures you want. Transport type and hidden lines are saved separately for each stop on the current browser.
 
+The top clock shows hours, minutes and seconds. Departure countdowns show minutes and seconds and update once per second; scheduled departure times remain in HH:MM. The board displays average access times of 9 minutes walking and 5 minutes running. Countdown numbers are red below 5 minutes, orange from 5 to under 9 minutes, and white at 9 minutes or more. These are display countdowns based on the available feed timestamps; feed updates keep their existing cadence.
+
 Display mode hides the controls, requests fullscreen and keeps the screen awake when supported. The board uses a minimal black, grey and white theme.
 
 ## Run with live data

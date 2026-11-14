@@ -3,35 +3,39 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-function board() {
+function board(now) {
   const nodes = {};
   function node() {
-    const result = { value: '', children: [], textContent: '', className: '', style: {},
+    const result = { value: '', children: [], attributes: {}, className: '', style: {},
       appendChild(child) { this.children.push(child); return child; },
-      setAttribute() {}, focus() {}, add(option) { this.options.push(option); if (!this.value) this.value = option.value; } };
+      setAttribute(name, value) { this.attributes[name] = value; }, focus() {}, add(option) { this.options.push(option); if (!this.value) this.value = option.value; } };
+    let text = '';
+    Object.defineProperty(result, 'textContent', { get() { return text; }, set(value) { text = value; this.children = []; } });
     result.options = [];
     return result;
   }
+  const intervals = [];
   const requests = [];
+  class BoardDate extends Date { static now() { return now === undefined ? Date.now() : now; } }
   const prefs = new Map();
   const data = { end: '20990101', services: { daily: ['20261114'] },
     catalog: { 'Hlavní nádraží': { file: 'main.json', lines: [[0, '9'], [1, 'C'], [3, '905']] },
       'Anděl': { file: 'andel.json', lines: [[0, '9'], [0, '10'], [3, '123']] },
       'Štěpánská': { file: 'stepanska.json', lines: [[0, '22']] } },
     stations: { 'Hlavní nádraží': [[36000, 'daily', '9', 0, 'Řepy'], [36100, 'daily', 'C', 1, 'Háje']] } };
-  const context = { console, Date, JSON, Object, String, Number, Math, Array, Error,
+  const context = { console, Date: BoardDate, JSON, Object, String, Number, Math, Array, Error,
     db: data, location: { hostname: 'localhost', protocol: 'http:' }, navigator: {},
     document: { getElementById(id) { return nodes[id] ||= node(); }, createElement: node,
       createTextNode(text) { return { textContent: text }; }, body: {}, documentElement: {} },
     localStorage: { getItem(k) { return prefs.get(k) ?? null; }, setItem(k, v) { prefs.set(k, v); } },
     Option: function(text, value) { this.text = text; this.value = String(value); },
     XMLHttpRequest: function() { requests.push(this); this.open = (method, url) => { this.url = url; }; this.send = () => {}; },
-    setInterval() {}, window: {} };
+    setInterval(callback, milliseconds) { intervals.push({ callback, milliseconds }); }, window: {} };
   let source = fs.readFileSync(require('node:path').join(__dirname, '../board.html.in'), 'utf8').split('<script>')[1].split('</script>')[0];
   source = source.replace('var db=/*TIMETABLE*/null;', '');
   vm.createContext(context);
   vm.runInContext(source, context);
-  return { c: context, nodes, requests, prefs };
+  return { c: context, nodes, requests, prefs, intervals };
 }
 
 test('filters route numbers and letters before filling five departure rows', () => {
@@ -92,4 +96,41 @@ test('changing stops discards a delayed timetable response for the previous stop
   current.status = 200; current.responseText = JSON.stringify({ rows: [[36000, 'daily', '22', 0, 'Hostivař']], services: { daily: ['20261114'] } }); current.onload();
   assert.equal(c.db.stations['Štěpánská'].length, 1);
   assert.equal(c.loading, false);
+});
+
+test('countdown updates each second and applies exact walking/running thresholds', () => {
+  const now = Date.UTC(2026, 10, 14, 12, 0, 7);
+  const { c, nodes, intervals } = board(now);
+  assert.equal(c.countdown(c.remainingSeconds(now + 299999, now)), '4:59');
+  assert.equal(c.countdownTone(299), 'too-late');
+  assert.equal(c.countdownTone(300), 'run-only');
+  assert.equal(c.countdownTone(539), 'run-only');
+  assert.equal(c.countdownTone(540), '');
+  assert.equal(c.countdown(0), '0:00');
+  assert.equal(c.remainingSeconds(now - 1, now), 0);
+  assert.equal(c.countdown(3601), '60:01');
+  assert.equal(nodes.clock.textContent, '13:00:07');
+  assert.equal(c.clock(now), '13:00');
+  assert.ok(intervals.some(interval => interval.callback === c.render && interval.milliseconds === 1000));
+});
+
+test('renders seconds and urgency colors without transport notes, retaining minute-only scheduled times', () => {
+  const now = Date.UTC(2026, 10, 14, 12, 0, 7);
+  const { c, nodes } = board(now);
+  c.live = [
+    { at: now + 299000, scheduledAt: now + 120000, predicted: true, type: 1, line: 'C', dest: 'Háje' },
+    { at: now + 360000, type: 0, line: '9', dest: 'Řepy' },
+    { at: now + 600000, type: 3, line: '905', dest: 'Letňany' }
+  ];
+  c.updated = now; c.failed = false; c.render();
+  const rows = nodes.rows.children;
+  assert.equal(rows.length, 3);
+  assert.equal(rows[0].children[1].children.length, 1);
+  assert.equal(rows[0].children[1].children[0].textContent, 'Háje');
+  assert.equal(rows[0].children[2].children[0].textContent, '4:59');
+  assert.equal(rows[0].children[2].children[0].className, 'eta too-late');
+  assert.equal(rows[1].children[2].children[0].className, 'eta run-only');
+  assert.equal(rows[2].children[2].children[0].className.trim(), 'eta');
+  assert.equal(rows[0].children[2].children[1].textContent, '13:02');
+  assert.match(rows[0].children[2].children[1].attributes['aria-label'], /^Scheduled departure /);
 });
