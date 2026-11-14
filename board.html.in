@@ -61,8 +61,8 @@ function lineFilters(){
   if(mode!=="all"&&r[0]!=mode)return;
   var key=routeKey(r[0],r[1]);total++;if(!excluded[key])shown++;
   if(!groups[r[0]]){var group=document.createElement("fieldset"),legend=document.createElement("legend");group.className="line-group";legend.textContent=types[r[0]]||"Transit";group.appendChild(legend);box.appendChild(group);groups[r[0]]=group}
-  var label=document.createElement("label"),input=document.createElement("input");label.className="line-choice";input.type="checkbox";input.checked=!excluded[key];input.setAttribute("aria-label",(types[r[0]]||"Transit")+" "+r[1]);
-  input.onchange=function(){if(input.checked)delete excluded[key];else excluded[key]=true;saveLines();lineFilters();render()};
+  var label=document.createElement("label"),input=document.createElement("input");label.className="line-choice";input.id="route-"+key;input.type="checkbox";input.checked=!excluded[key];input.setAttribute("aria-label",(types[r[0]]||"Transit")+" "+r[1]);
+  input.onchange=function(){if(input.checked)delete excluded[key];else excluded[key]=true;saveLines();lineFilters();el("route-"+key).focus();render()};
   label.appendChild(input);label.appendChild(document.createTextNode(r[1]));groups[r[0]].appendChild(label);
  });
  el("line-summary").textContent=shown===total?"All lines ("+total+")":shown+" of "+total+" lines shown";
