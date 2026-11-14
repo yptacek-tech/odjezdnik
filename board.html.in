@@ -8,11 +8,15 @@ main{width:100%;margin:14px auto}header,footer,.controls,.station,.row,.columns{
 @media(min-width:600px) and (orientation:landscape) and (max-height:780px){main{margin:4px auto}.top{padding-top:8px;padding-bottom:8px}.row{padding:5px 0;min-height:56px}.station{margin:2px 0 6px}.sub{margin-top:2px}.eta{font-size:30px}.dest{font-size:23px}h1{font-size:32px}footer{padding-top:8px;padding-bottom:8px}}
 @media(max-width:599px){.top,.body,footer{padding-left:14px;padding-right:14px}.dest{font-size:18px}.eta{font-size:28px}.row>div:first-child,.columns>span:first-child{width:40px;margin-right:6px}h1{font-size:29px}.controls select{font-size:15px}.time,.columns>span:last-child{min-width:60px}}
 </style>
-<main><header><div class="brand"><i class="mark"></i>Odjezdník</div><button id="display">Display mode</button></header><article><div class="top"><time class="clock" id="clock"></time><div class="eyebrow">Prague departures</div><div class="station"><span class="symbol" aria-label="Metro line C">C</span><h1 id="heading">Hlavní nádraží</h1></div><div class="controls"><select id="station" aria-label="Choose station"></select><select id="mode" aria-label="Transport type"></select></div></div><div class="body"><div class="columns"><span>Line</span><span>Direction</span><span>Leaves in</span></div><div id="rows"></div></div><footer><span id="status" role="status"></span><a href="https://pid.cz/en/opendata/">PID data ↗</a></footer></article></main>
+<style>
+.stop-search{margin:0 0 10px}.stop-search label{display:block;font-size:12px;color:#ccdacd;margin-bottom:5px}.stop-search input{width:100%;min-height:44px;border:1px solid #648371;border-radius:10px;background:#102b23;color:#fff;padding:9px 12px;font:inherit}.stop-search input::placeholder{color:#b5c8bc}.search-help{font-size:12px;color:#ccdacd;margin:5px 0 0}.controls{align-items:flex-start}.controls select{margin-bottom:8px}.line-filter{position:relative;flex:1;min-width:170px}.line-filter summary{cursor:pointer;border:1px solid #648371;border-radius:16px;padding:11px 12px;min-height:44px;font-size:15px}.line-panel{padding:12px 0 0}.line-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}.line-actions button{color:#f4f4e9;border-color:#648371;font-size:13px}.line-group{border:0;padding:8px 0;margin:0}.line-group legend{font-size:12px;color:#ccdacd;padding:0}.line-choice{display:inline-flex;align-items:center;min-height:44px;border:1px solid #648371;border-radius:8px;margin:4px 6px 0 0;padding:4px 10px;cursor:pointer;font-size:16px}.line-choice input{margin:0 7px 0 0;width:18px;height:18px;accent-color:#def189}.controls select:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #def189;outline-offset:2px}.displaying .stop-search{display:none}
+</style>
+<main><header><div class="brand"><i class="mark"></i>Odjezdník</div><button id="display">Display mode</button></header><article><div class="top"><time class="clock" id="clock"></time><div class="eyebrow">Prague departures</div><div class="station"><span class="symbol" aria-label="Public transport">PID</span><h1 id="heading">Hlavní nádraží</h1></div><div class="stop-search"><label for="stop-query">Find any Prague stop</label><input id="stop-query" type="search" placeholder="Search a stop, e.g. Anděl or Dejvicka" autocomplete="off" aria-describedby="search-help"><p id="search-help" class="search-help" role="status"></p></div><div class="controls"><select id="station" aria-label="Choose station"></select><select id="mode" aria-label="Transport type"></select><details id="line-filter" class="line-filter"><summary id="line-summary">All lines</summary><div class="line-panel"><div class="line-actions"><button id="show-all" type="button">Show all</button><button id="hide-all" type="button">Hide all</button></div><div id="line-options"></div></div></details></div></div><div class="body"><div class="columns"><span>Line</span><span>Direction</span><span>Leaves in</span></div><div id="rows"></div></div><footer><span id="status" role="status"></span><a href="https://pid.cz/en/opendata/">PID data ↗</a></footer></article></main>
 <script>
 var db=/*TIMETABLE*/null;
 var types={0:"Tram",1:"Metro",2:"Train",3:"Bus",4:"Ferry",7:"Funicular",11:"Trolleybus"};
 var live=null,updated=0,sequence=0,failed=false,scheduled=[],cacheDay="",wake=null;
+var loading=false,timetableError=false,loadSequence=0,excluded={},catalog=db.catalog||{},stationLines=[];
 var onPages=/\.github\.io$/.test(location.hostname);
 function el(id){return document.getElementById(id)}
 function preference(key,value){try{if(value===undefined)return localStorage.getItem(key);localStorage.setItem(key,value)}catch(e){}}
@@ -30,11 +34,53 @@ function stationKey(name){
  var key=String(name||"").toLowerCase().replace(/[á]/g,"a").replace(/í/g,"i").replace(/ž/g,"z").replace(/ř/g,"r").replace(/^praha[\s,.-]+/,"").replace(/[\s.,-]/g,"");
  return /^(hln|hlnadrazi|hlavninadr)$/.test(key)?"hlavninadrazi":key;
 }
+function searchKey(name){
+ return stationKey(String(name).toLowerCase().replace(/[čć]/g,"c").replace(/ď/g,"d").replace(/[éě]/g,"e").replace(/ň/g,"n").replace(/ó/g,"o").replace(/š/g,"s").replace(/ť/g,"t").replace(/[úů]/g,"u").replace(/ý/g,"y"));
+}
+function routeKey(type,line){return String(type)+":"+line}
+function linesForStation(){
+ var name=el("station").value,seen={},result=[];
+ function add(type,line){var key=routeKey(type,line);if(!seen[key]){seen[key]=true;result.push([Number(type),String(line)])}}
+ if(catalog[name])catalog[name].lines.forEach(function(r){add(r[0],r[1])});
+ (db.stations[name]||[]).forEach(function(r){add(r[3],r[2])});
+ (live||[]).forEach(function(r){add(r.type,r.line)});
+ return result.sort(function(a,b){return a[0]-b[0]||a[1].localeCompare(b[1],undefined,{numeric:true})});
+}
 function modes(){
- var select=el("mode"),seen={},saved=preference("mode");
+ var select=el("mode"),seen={},saved=preference("mode:"+el("station").value);
  select.options.length=0;select.add(new Option("All transport","all"));
- db.stations[el("station").value].forEach(function(r){if(!seen[r[3]]){seen[r[3]]=true;select.add(new Option(types[r[3]]||"Other",r[3]))}});
+ stationLines=linesForStation();
+ stationLines.forEach(function(r){if(!seen[r[0]]){seen[r[0]]=true;select.add(new Option(types[r[0]]||"Other",r[0]))}});
  if(saved&&seen[saved])select.value=saved;
+}
+function lineFilters(){
+ var box=el("line-options"),mode=el("mode").value,groups={},shown=0,total=0;
+ box.textContent="";
+ stationLines=linesForStation();
+ stationLines.forEach(function(r){
+  if(mode!=="all"&&r[0]!=mode)return;
+  var key=routeKey(r[0],r[1]);total++;if(!excluded[key])shown++;
+  if(!groups[r[0]]){var group=document.createElement("fieldset"),legend=document.createElement("legend");group.className="line-group";legend.textContent=types[r[0]]||"Transit";group.appendChild(legend);box.appendChild(group);groups[r[0]]=group}
+  var label=document.createElement("label"),input=document.createElement("input");label.className="line-choice";input.id="route-"+key;input.type="checkbox";input.checked=!excluded[key];input.setAttribute("aria-label",(types[r[0]]||"Transit")+" "+r[1]);
+  input.onchange=function(){if(input.checked)delete excluded[key];else excluded[key]=true;saveLines();lineFilters();el("route-"+key).focus();render()};
+  label.appendChild(input);label.appendChild(document.createTextNode(r[1]));groups[r[0]].appendChild(label);
+ });
+ el("line-summary").textContent=shown===total?"All lines ("+total+")":shown+" of "+total+" lines shown";
+ if(!total)box.appendChild(part("search-help","No departing lines in this timetable."));
+}
+function saveLines(){preference("hidden-lines:"+el("station").value,JSON.stringify(excluded))}
+function setAllLines(show){stationLines.forEach(function(r){if(el("mode").value!=="all"&&r[0]!=el("mode").value)return;var key=routeKey(r[0],r[1]);if(show)delete excluded[key];else excluded[key]=true});saveLines();lineFilters();render()}
+function loadTimetable(){
+ var station=el("station").value,seq=++loadSequence;loading=false;timetableError=false;
+ if(db.stations[station])return;
+ if(location.protocol==="file:"){timetableError=true;return}
+ loading=true;var req=new XMLHttpRequest();req.open("GET","data/"+catalog[station].file,true);req.timeout=20000;
+ function failure(){if(seq===loadSequence){loading=false;timetableError=true;render()}}
+ req.onerror=req.ontimeout=failure;
+ req.onload=function(){
+  if(seq!==loadSequence)return;
+  try{if(req.status!==200)throw Error();var data=JSON.parse(req.responseText);if(!Array.isArray(data.rows)||!data.services)throw Error();db.stations[station]=data.rows;Object.keys(data.services).forEach(function(k){db.services[k]=data.services[k]});loading=false;cacheDay="";render()}catch(e){failure()}
+ };req.send();
 }
 function schedule(now){
  var d=local(now),key=dateKey(d);
@@ -42,7 +88,7 @@ function schedule(now){
  [-1,0,1].forEach(function(offset){
  var noon=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()+offset,12);
  var serviceDay=dateKey(new Date(noon)),start=noon-offsetAt(noon)-43200000;
- db.stations[el("station").value].forEach(function(r){
+ (db.stations[el("station").value]||[]).forEach(function(r){
  if(db.services[r[1]]&&db.services[r[1]].indexOf(serviceDay)>=0)scheduled.push({at:start+r[0]*1000,line:r[2],type:r[3],dest:r[4]});
  });
  });
@@ -50,10 +96,10 @@ function schedule(now){
 }
 function part(cls,text){var n=document.createElement("div");n.className=cls;n.textContent=text;return n}
 // A reinforced service can have several PID vehicle records for one advertised departure.
-function upcomingRows(source,now,target,mode){
+function upcomingRows(source,now,target,mode,hidden){
  var byService=Object.create(null),rows=[];
  source.forEach(function(r){
-  if(r.at<now||stationKey(r.dest)===target||(mode!=="all"&&r.type!=mode))return;
+  if(r.at<now||stationKey(r.dest)===target||(mode!=="all"&&r.type!=mode)||(hidden&&hidden[routeKey(r.type,r.line)]))return;
   var key=JSON.stringify([r.scheduledAt||r.at,r.type,r.line,stationKey(r.dest)]);
   var previous=byService[key];
   if(previous===undefined){
@@ -69,7 +115,7 @@ function render(){
  var now=Date.now(),station=el("station").value,mode=el("mode").value,target=stationKey(station);
  el("heading").textContent=station;el("clock").textContent=clock(now);schedule(now);
  var fresh=live!==null&&!failed&&now-updated<(onPages?900000:90000);
- var rows=upcomingRows(fresh?live:scheduled,now,target,mode);
+ var rows=upcomingRows(fresh?live:scheduled,now,target,mode,excluded);
  var list=el("rows");list.textContent="";
  rows.forEach(function(r){
  var row=part("row",""),direction=part("",""),time=part("time",""),eta=part("eta",Math.ceil((r.at-now)/60000));
@@ -78,7 +124,7 @@ function render(){
  time.appendChild(eta);time.appendChild(part("sub",clock(r.at)+(r.delay>0?" · +"+r.delay+"m":"")));
  row.appendChild(part("badge "+(r.type===1?"metro"+r.line:""),r.line));row.appendChild(direction);row.appendChild(time);list.appendChild(row);
  });
- if(!rows.length)list.appendChild(part("empty",dateKey(local(now))>db.end&&!fresh?"Timetable expired. Refresh the PID feed.":"No upcoming departures in the available timetable."));
+ if(!rows.length)list.appendChild(part("empty",loading&&!fresh?"Loading this stop’s timetable…":timetableError&&!fresh?(location.protocol==="file:"?"Open the hosted board or run python server.py to load this stop.":"Could not load this stop. Select it again to retry."):dateKey(local(now))>db.end&&!fresh?"Timetable expired. Refresh the PID feed.":"No upcoming departures for the selected lines. Try Show all or another transport type."));
  el("status").textContent=fresh?"Live feed · "+clock(updated):failed?"Live feed unavailable · Timetable":"PID timetable · Scheduled";
 }
 function refresh(){
@@ -92,19 +138,31 @@ function refresh(){
  if(seq!==sequence)return;
  try{
  if(req.status!==200)throw Error();
- var data=JSON.parse(req.responseText);if(onPages)data=data[station];
+ var data=JSON.parse(req.responseText);if(onPages){data=data[station];if(!data){live=null;failed=false;render();return}}
  updated=onPages?data.observed:Date.now();if(Date.now()-updated>900000)throw Error();
- live=data.rows;failed=false;render();
+ live=data.rows;failed=false;var selectedMode=el("mode").value;modes();if(selectedMode==="all"||stationLines.some(function(r){return r[0]==selectedMode}))el("mode").value=selectedMode;lineFilters();render();
  }catch(e){failure()}
  };
  req.send();
 }
-function change(){cacheDay="";live=null;failed=false;preference("station",el("station").value);render();refresh()}
-Object.keys(db.stations).forEach(function(s){el("station").add(new Option(s,s))});
+function change(){cacheDay="";live=null;failed=false;preference("station",el("station").value);try{excluded=JSON.parse(preference("hidden-lines:"+el("station").value)||"{}");if(!excluded||typeof excluded!=="object"||Array.isArray(excluded))excluded={}}catch(e){excluded={}}modes();lineFilters();loadTimetable();render();refresh()}
+var stationNames=Object.keys(db.catalog||db.stations).sort(function(a,b){return a.localeCompare(b,"cs")});
+function stationOptions(query){
+ var select=el("station"),current=select.value,needle=searchKey(query),matches=stationNames.filter(function(s){return searchKey(s.toLowerCase()).indexOf(needle)>=0});
+ select.options.length=0;
+ if(current&&matches.indexOf(current)<0)select.add(new Option(current+" (current)",current));
+ matches.forEach(function(s){select.add(new Option(s,s))});if(current)select.value=current;
+ el("search-help").textContent=needle?matches.length+" matching stops · choose below or press Enter":stationNames.length+" Prague stops · all transport types";
+ return matches;
+}
+stationOptions("");
 var saved=preference("station");
 el("station").value=Object.prototype.hasOwnProperty.call(db.stations,saved)?saved:"Hlavní nádraží";
-el("station").onchange=function(){modes();change()};
-el("mode").onchange=function(){preference("mode",el("mode").value);change()};
+el("station").onchange=function(){el("stop-query").value="";stationOptions("");change()};
+el("stop-query").oninput=function(){stationOptions(this.value)};
+el("stop-query").onkeydown=function(e){if(e.key==="Enter"){var matches=stationOptions(this.value);if(matches.length){el("station").value=matches[0];el("station").onchange();el("station").focus()}}};
+el("mode").onchange=function(){preference("mode:"+el("station").value,el("mode").value);lineFilters();render()};
+el("show-all").onclick=function(){setAllLines(true)};el("hide-all").onclick=function(){setAllLines(false)};
 function setDisplay(active){document.body.className=active?"displaying":"";el("display").textContent=active?"Exit display":"Display mode";el("display").setAttribute("aria-pressed",String(active))}
 el("display").onclick=function(){
  var active=document.body.className!=="displaying";setDisplay(active);
@@ -113,5 +171,5 @@ el("display").onclick=function(){
  }else{if(document.fullscreenElement)document.exitFullscreen();if(wake){wake.release();wake=null}}
 };
 document.onfullscreenchange=function(){if(!document.fullscreenElement){setDisplay(false);if(wake){wake.release();wake=null}}};
-modes();render();refresh();setInterval(render,5000);setInterval(refresh,30000);document.onvisibilitychange=function(){if(!document.hidden){render();refresh()}};
+change();setInterval(render,5000);setInterval(refresh,30000);document.onvisibilitychange=function(){if(!document.hidden){render();refresh()}};
 </script></html>

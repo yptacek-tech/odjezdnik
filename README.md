@@ -1,10 +1,14 @@
 # Odjezdník · Prague departure board
 
-Open index.html directly for the self-contained timetable edition. Select a station and transport type. Display mode requests fullscreen and keeps the screen awake when supported. Preferences are stored on that browser.
+Select any active Prague stop from PID's current timetable: metro, tram, bus, trolleybus, train, ferry or funicular where operating. Search accepts names with or without Czech accents. Platforms sharing a stop name are grouped; Praha hl.n. is grouped with Hlavní nádraží.
+
+Choose a stop, then open **All lines** to select its route numbers or letters. **Hide all** lets you start with just the routes you use; **Show all** restores every route for the selected transport type. Filters apply before the board takes the next five departures, so hidden routes leave room for later departures you want. Transport type and hidden lines are saved separately for each stop on the current browser.
+
+Display mode hides the controls, requests fullscreen and keeps the screen awake when supported. The stop header uses a neutral PID marker for every transport type.
 
 ## Run with live data
 
-Run `python server.py` with Python 3.10 or newer, then visit http://localhost:8080. Set GOLEMIO_API_KEY in the server environment to enable predicted departures. Keys are issued through https://api.golemio.cz/api-keys . The board requests updates every 30 seconds. Services without predictions show their scheduled times.
+Run `python build.py` once, then `python server.py` with Python 3.10 or newer and visit http://localhost:8080. Set GOLEMIO_API_KEY in the server environment to enable predicted departures for any selected Prague stop. Keys are issued through https://api.golemio.cz/api-keys . The board requests updates every 30 seconds. Services without predictions show their scheduled times.
 
 ## Deploy for a phone
 
@@ -12,7 +16,12 @@ Deploy this directory to a Docker-capable web host and enable HTTPS. Set BOARD_P
 
 ## Updating the standalone file
 
-Run `python build.py` to download the current PID timetable and rebuild index.html. The bundled snapshot covers 10–23 November 2026. Local server users can set REFRESH_TIMETABLE=1 for daily refreshes. Source data: https://pid.cz/en/opendata/ . Live API: https://api.golemio.cz/pid/docs/openapi/ .
+Run `python build.py` to download the current PID timetable and rebuild index.html plus `data/`. The searchable catalog uses PID's `zone_region_type=1` city boundary and excludes technical waypoints. Each stop's timetable is loaded only when selected; file names are content hashes, preventing stale browser data after updates. Keep `data/` alongside index.html when hosting or copying the board. Opening index.html directly still supports the original six embedded stops; other stops require the hosted board or local server. Local server users can set REFRESH_TIMETABLE=1 for daily refreshes. Source data: https://pid.cz/en/opendata/ . Live API: https://api.golemio.cz/pid/docs/openapi/ .
 
 ## GitHub Pages
-Enable GitHub Actions under Settings → Pages. The included workflow refreshes the timetable daily. The live workflow requests Golemio predictions for each station with the GOLEMIO_API_KEY repository secret and publishes only departure data to the live-data branch. Runs are scheduled every five minutes and may start later. The page shows the observation time and switches to the timetable if the data is older than 15 minutes.
+Enable GitHub Actions under Settings → Pages. The included workflow refreshes all Prague timetables daily and publishes index.html with data/. The live workflow keeps predictions for the original six stations with the GOLEMIO_API_KEY repository secret and publishes only departure data to the live-data branch. Other stops on Pages use scheduled departures; use the Python server with a key for on-demand predictions at all stops. Runs are scheduled every five minutes and may start later. The page shows the observation time and switches to the timetable if the data is older than 15 minutes.
+
+## Checks
+
+Run `python -m unittest discover -s tests` and `node --test tests/board.test.cjs`. Pull requests also build the full current PID feed to verify the stop catalog and generated timetables.
+
