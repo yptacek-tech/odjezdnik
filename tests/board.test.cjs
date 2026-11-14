@@ -60,11 +60,12 @@ test('keeps predicted duplicate and excludes arrivals at the selected terminus',
   assert.equal(rows.length, 1); assert.equal(rows[0].at, 120);
 });
 
-test('search handles Czech accents, uppercase and station aliases', () => {
-  const { c } = board();
-  assert.equal(c.stationOptions('ANDEL')[0], 'Anděl');
-  assert.equal(c.stationOptions('STEPANSKA')[0], 'Štěpánská');
-  assert.equal(c.stationOptions('ŠTĚPÁNSKÁ')[0], 'Štěpánská');
+test('dropdown starts at Hlavní nádraží and offers every catalog stop', () => {
+  const { c, nodes } = board();
+  assert.equal(nodes.station.value, 'Hlavní nádraží');
+  assert.deepEqual(nodes.station.options.map(option => option.value), ['Anděl', 'Hlavní nádraží', 'Štěpánská']);
+  nodes.station.value = 'Anděl'; nodes.station.onchange();
+  assert.ok(c.stationLines.some(r => r[1] === '123'));
   assert.equal(c.stationKey('Praha hl.n.'), 'hlavninadrazi');
 });
 
