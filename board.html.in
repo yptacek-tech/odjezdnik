@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0b0b"><meta name="apple-mobile-web-app-capable" content="yes"><title>Odjezdník · Prague departure board</title>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0b0b"><meta name="apple-mobile-web-app-capable" content="yes"><title>MyStation · Prague departure board</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#0b0b0b;color:#f5f5f5;font:16px "Segoe UI",Arial,sans-serif;color-scheme:dark}
@@ -70,7 +70,7 @@ body:fullscreen{overflow:auto}
 }
 </style>
 <main>
-<header><div class="brand">Odjezdník</div><button id="display">Display mode</button></header>
+<header><div class="brand">MyStation</div><button id="display">Display mode</button></header>
 <article>
 <div class="top">
 <div class="station"><h1 id="heading">Hlavní nádraží</h1><time class="clock" id="clock"></time></div>
